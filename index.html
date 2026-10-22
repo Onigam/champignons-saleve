@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Champignons du Salève</title>
+<meta name="description" content="Carte 3D des habitats à cèpes, bolets, girolles, trompettes et morilles autour du Salève et du bassin genevois, avec la poussée prévue selon la météo.">
+<meta name="theme-color" content="#1b251e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 15c0-6 5-10 12-10s12 4 12 10c0 1-1 2-2 2H6c-1 0-2-1-2-2z' fill='%23a0522d'/%3E%3Cpath d='M12 17h8l-1 10c0 1-1 2-3 2s-3-1-3-2z' fill='%23eadbc0'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map" aria-label="Carte 3D du Salève et du bassin genevois"></div>
+
+<div id="ui">
+  <aside id="panel" aria-label="Commandes de la carte">
+    <div id="panelScroll">
+      <div class="brand">
+        <div class="brandRow">
+          <h1>Champignons du Salève</h1>
+          <button class="btn sheetToggle" id="sheetToggle" aria-expanded="true">Réduire</button>
+        </div>
+        <p>Salève · Voirons · Vuache · Jura gessien · bassin genevois</p>
+        <span class="status" id="status"><i></i><span>Chargement…</span></span>
+      </div>
+
+      <section class="near" aria-labelledby="hNear">
+        <div class="nearHead">
+          <h2 id="hNear">Autour de moi</h2>
+          <button class="btn locBtn" id="locBtn">Me localiser</button>
+        </div>
+        <p class="nearMsg" id="nearMsg">Activez la localisation pour voir l'habitat à l'endroit où vous êtes et les coins favorables à moins de 1,5 km.</p>
+        <ol class="rank" id="nearList"></ol>
+      </section>
+
+      <section aria-labelledby="hSp">
+        <h2 id="hSp">Espèce</h2>
+        <div class="species" id="species" role="group" aria-label="Espèce affichée"></div>
+      </section>
+
+      <section class="when" aria-labelledby="hDay">
+        <h2 id="hDay">Date</h2>
+        <div class="dateRow"><span class="date" id="dateLbl">—</span><span class="conf" id="conf">—</span></div>
+        <span class="rel" id="relLbl"></span>
+        <div class="dayCtl">
+          <button class="btn icon" id="prevDay" aria-label="Jour précédent">‹</button>
+          <input type="range" id="day" min="0" max="1" value="0" step="1" aria-label="Choisir le jour">
+          <button class="btn icon" id="nextDay" aria-label="Jour suivant">›</button>
+          <button class="btn" id="todayBtn">Aujourd'hui</button>
+        </div>
+        <canvas id="chart" aria-label="Indice de poussée par altitude et par jour"></canvas>
+        <div class="chartNote"><span>altitude ↑ · jours →</span><span id="chartR">pluie (mm) en haut</span></div>
+      </section>
+
+      <div class="fold">
+        <div class="verdict" id="verdict"><strong>—</strong><p></p></div>
+
+        <section aria-labelledby="hRank">
+          <h2 id="hRank">Meilleurs secteurs ce jour-là</h2>
+          <ol class="rank" id="rank"></ol>
+        </section>
+
+        <section class="toggles" aria-labelledby="hMap">
+          <h2 id="hMap">Carte</h2>
+          <div class="seg" role="group" aria-label="Fond de carte">
+            <button id="baseSat" aria-pressed="true">Photo aérienne</button>
+            <button id="basePlan" aria-pressed="false">Plan OSM</button>
+          </div>
+          <div class="seg" role="group" aria-label="Mode d'affichage">
+            <button id="modeF" aria-pressed="true">Prévision du jour</button>
+            <button id="modeH" aria-pressed="false">Habitat seul</button>
+          </div>
+          <label class="chk"><input type="checkbox" id="tRules" checked> Réserves et zones réglementées</label>
+          <label class="chk"><input type="checkbox" id="tSec" checked> Secteurs</label>
+          <div class="sliderRow"><label for="heat">Intensité</label><input type="range" id="heat" min="0" max="1" step="0.05" value="0.85"><output id="heatOut">85 %</output></div>
+          <div class="sliderRow"><label for="exag">Relief</label><input type="range" id="exag" min="1" max="2.5" step="0.1" value="1.3"><output id="exagOut">×1,3</output></div>
+        </section>
+
+        <section class="legend" aria-labelledby="hLeg">
+          <h2 id="hLeg">Légende</h2>
+          <div class="ramp" id="ramp"></div>
+          <div class="rampLbl"><span>faible</span><span>bon</span><span>fort</span></div>
+          <div class="hatch"><i style="background:repeating-linear-gradient(45deg,#c42a3c 0 4px,transparent 4px 8px)"></i>Réserve naturelle : cueillette interdite</div>
+          <div class="hatch"><i style="background:repeating-linear-gradient(45deg,#e39522 0 4px,transparent 4px 8px)"></i>Zone protégée : règles à vérifier (APPB, réserve du Jura…)</div>
+          <div class="hatch"><i style="background:repeating-linear-gradient(90deg,#ffe28c 0 6px,transparent 6px 10px);height:3px"></i>Sentier et chemin (OpenStreetMap)</div>
+        </section>
+
+        <details>
+          <summary>Périodes habituelles</summary>
+          <div class="prose">
+            <p>Fenêtres de saison utilisées par le modèle, à trois altitudes (traits du haut : 1300 m, milieu : 900 m, bas : 450 m). Elles viennent des guides de terrain et des relevés GBIF de la zone ; la météo décide ensuite si la poussée a lieu.</p>
+          </div>
+          <div class="cal" id="cal"></div>
+        </details>
+
+        <details>
+          <summary>Règles de cueillette</summary>
+          <div class="prose">
+            <h3>Genève</h3>
+            <ul>
+              <li>2 kg par personne et par jour (RPPMF L 4 05.11, art. 27). Au-delà, ou pour vendre : autorisation de l'office cantonal.</li>
+              <li>Réserves naturelles : toute cueillette interdite, accès sur les chemins balisés seulement (art. 19).</li>
+              <li>Réserves forestières : cueillette admise dans la limite des 2 kg (RForêts, art. 38), sauf panneau contraire.</li>
+              <li>Espèces de la liste rouge et espèces protégées : interdites. Chiens en laisse en forêt du 1er avril au 15 juillet.</li>
+            </ul>
+            <h3>Vaud (Terre Sainte)</h3>
+            <ul><li>2 kg par personne et par jour, de 7 h à 20 h ; interdit dans les réserves naturelles.</li></ul>
+            <h3>France (Haute-Savoie, Ain)</h3>
+            <ul>
+              <li>Les champignons appartiennent au propriétaire du terrain. Le Salève et le Vuache sont en grande partie privés : demandez l'accord du propriétaire.</li>
+              <li>En forêt domaniale ou communale gérée par l'ONF, la cueillette familiale est présumée tolérée jusqu'à environ 5 L par personne, sauf règle locale.</li>
+              <li>Plus de 10 L sans l'accord du propriétaire : délit (Code forestier, L163-11).</li>
+              <li>Réserve naturelle nationale de la Haute Chaîne du Jura : cueillette permise pour la consommation familiale, avec l'accord du propriétaire. Chiens interdits, même tenus en laisse.</li>
+              <li>Arrêtés de protection de biotope (Petit Salève, Voirons, versant ouest du Vuache, Bois de la Vernaz) : lisez l'arrêté avant de cueillir.</li>
+              <li>Aucun arrêté préfectoral sur les champignons n'a été trouvé pour la Haute-Savoie ni pour l'Ain ; vérifiez en mairie.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details>
+          <summary>Sécurité et contrôle</summary>
+          <div class="prose">
+            <p><b>Ne mangez rien sans contrôle.</b> Cette carte ne sert pas à identifier un champignon.</p>
+            <h3>Contrôle gratuit à Genève</h3>
+            <p>SCAV, quai Ernest-Ansermet 22, 1205 Genève · <span class="mono">+41 22 546 56 00</span>. Guichet du 31 août au 1er novembre 2026 : lundi 8 h 30–10 h 30 et 15 h 30–17 h 30, mardi à jeudi 15 h 30–17 h 30, vendredi sur rendez-vous. Hors saison, sur rendez-vous. Horaires à confirmer sur <a href="https://www.ge.ch/faire-controler-champignons" target="_blank" rel="noopener">ge.ch</a>.</p>
+            <h3>En France</h3>
+            <p>Pas de contrôle officiel : faites vérifier par un pharmacien ou une société mycologique.</p>
+            <h3>Urgences</h3>
+            <p>Suisse : <span class="mono">145</span> (Tox Info Suisse) ou <span class="mono">144</span>. France : <span class="mono">15</span> ou un centre antipoison.</p>
+            <h3>Confusions à connaître</h3>
+            <ul>
+              <li><b>Cèpes, bolets</b> : bolet de Satan (pores rouges, chair qui bleuit), toxique ; bolet amer (pores roses), immangeable ; jeune amanite tue-mouches encore fermée.</li>
+              <li><b>Girolle</b> : clitocybe de l'olivier (vraies lames, en touffes sur bois), toxique ; fausse girolle (lames fourchues), sans intérêt.</li>
+              <li><b>Morille</b> : gyromitre (surface en cerveau, sans alvéoles), toxique. Les morilles elles-mêmes sont toxiques crues : cuire au moins 20 minutes, 100 g frais au plus par repas.</li>
+              <li><b>Trompette</b> : pas de confusion dangereuse connue.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details>
+          <summary>Méthode et sources</summary>
+          <div class="prose">
+            <p>Ces zones ne sont pas des « coins » relevés sur le terrain. Ce sont des habitats modélisés à 20 m : essence forestière, géologie et acidité du sol, altitude, exposition, pente, lisières et corridors alluviaux. L'indice du jour multiplie cet habitat par une probabilité de poussée calculée pour chaque tranche de 100 m d'altitude, à partir de la saison, de la température moyenne des 10 à 20 derniers jours, des pluies des 3 à 4 dernières semaines et des gelées. Les versants sud comptent comme 150 m plus bas, les versants nord comme 150 m plus haut.</p>
+            <p>Fiabilité : bonne jusqu'à J+7, tendance de J+8 à J+16, moyenne d'ensemble saisonnière ensuite. La météo est rechargée depuis Open-Meteo à chaque visite (au plus toutes les 3 heures).</p>
+            <h3>Données</h3>
+            <ul>
+              <li>Fond de carte, routes et sentiers : © contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, tuiles <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>.</li>
+              <li>Photo aérienne : IGN BD ORTHO (France), swisstopo SWISSIMAGE (Suisse). Relief : Mapterhorn.</li>
+              <li>Forêts : IGN BD Forêt V2 (France) ; OFEV, IFN mixité des forêts, et swisstopo swissTLM3D (Suisse).</li>
+              <li>Réserves : SITG (Genève, Vaud), IGN BD TOPO (France), OFEV (zones alluviales, bas-marais, réserves forestières), Pro Natura.</li>
+              <li>Météo : <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0), prévision et tendance saisonnière ECMWF.</li>
+              <li>Phénologie : relevés GBIF de la zone ; Brejon Lamartinière et al., suivi de 10 ans des cèpes en hêtraie (prépublication bioRxiv, 2025) ; fiches VAPKO et Tox Info Suisse.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </aside>
+  <div id="mapArea">
+    <section id="card" hidden aria-live="polite"></section>
+  </div>
+</div>
+
+<div id="loader"><div><span id="loadTxt">Chargement des forêts et du relief…</span><progress id="loadBar" max="1" value="0"></progress><span id="err"></span></div></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="model.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
