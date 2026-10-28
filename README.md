@@ -18,7 +18,7 @@ python3 scripts/fetch_raw.py
 python3 scripts/build_layers.py
 ```
 
-Si la zone ou la grille change, reporter les valeurs en tête de `app.js` (vérifiées au chargement contre `data/meta.json`).
+Si la zone ou la grille change, reporter les valeurs en tête de `app.js` (vérifiées au chargement contre `data/meta.json`). Après chaque reconstruction des données, changer `DATA_V` dans `app.js` pour que les navigateurs ne gardent pas les anciennes images en cache.
 
 ## Déployer
 

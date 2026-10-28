@@ -147,17 +147,21 @@ async function fetchWeather() {
 }
 
 // ---------------------------------------------------------------------------------------------- data loading
-async function decode(url) {
+// Bump with every data rebuild: data/ is cached for a day, the version keeps code and rasters in step.
+const DATA_V = "2026-10-28";
+const dataUrl = (f) => `data/${f}?v=${DATA_V}`;
+async function decode(url, w, h) {
   const r = await fetch(url); if (!r.ok) throw new Error(`${url} ${r.status}`);
   const bmp = await createImageBitmap(await r.blob(), { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+  if (bmp.width !== w || bmp.height !== h) throw new Error(`${url} : ${bmp.width}×${bmp.height} au lieu de ${w}×${h}`);
   const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
   const cx = c.getContext("2d", { willReadFrequently: true }); cx.drawImage(bmp, 0, 0);
   return cx.getImageData(0, 0, bmp.width, bmp.height).data;
 }
 async function loadData() {
-  const files = [["habA", () => decode("data/hab_a.png")], ["habB", () => decode("data/hab_b.png")], ["mask", () => decode("data/mask.png")],
-    ["dem", () => decode("data/dem.png")], ["sectors", () => getJSON("data/sectors.json")], ["places", () => getJSON("data/places.json")],
-    ["reserves", () => getJSON("data/reserves.geojson")], ["forpub", () => getJSON("data/forets_publiques.json")], ["border", () => getJSON("data/ch_border.json")], ["meta", () => getJSON("data/meta.json")]];
+  const files = [["habA", () => decode(dataUrl("hab_a.png"), GX, GY)], ["habB", () => decode(dataUrl("hab_b.png"), GX, GY)], ["mask", () => decode(dataUrl("mask.png"), GX, GY)],
+    ["dem", () => decode(dataUrl("dem.png"), DW, DH)], ["sectors", () => getJSON(dataUrl("sectors.json"))], ["places", () => getJSON(dataUrl("places.json"))],
+    ["reserves", () => getJSON(dataUrl("reserves.geojson"))], ["forpub", () => getJSON(dataUrl("forets_publiques.json"))], ["border", () => getJSON(dataUrl("ch_border.json"))], ["meta", () => getJSON(dataUrl("meta.json"))]];
   let done = 0;
   const R = Object.fromEntries(await Promise.all(files.map(([k, f]) => f().then((v) => { done++; $("loadBar").value = done / files.length; return [k, v]; }))));
   const mt = R.meta;
