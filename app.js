@@ -5,8 +5,8 @@
 const W = 5.88, E = 6.40, SO = 46.00, NO = 46.36;
 const G = 2048; // habitat grid (columns linear in longitude, rows linear in Web Mercator y)
 const SP_META = {
-  cepe:      { name: "Cèpe de Bordeaux", short: "Cèpe", latin: "Boletus edulis", col: "#e0602a" },
-  bolet:     { name: "Autres bolets", short: "Bolets", latin: "B. reticulatus, aereus, pinophilus…", col: "#d6336c" },
+  cepe:      { name: "Cèpe de Bordeaux", short: "Cèpe de Bordeaux", latin: "Boletus edulis, avec le cèpe des pins B. pinophilus", col: "#e0602a" },
+  cepe_ete:  { name: "Cèpes d'été", short: "Cèpe d'été", latin: "cèpe réticulé B. reticulatus, cèpe bronzé B. aereus", col: "#d6336c" },
   girolle:   { name: "Girolle", short: "Girolle", latin: "Cantharellus cibarius", col: "#f2b705" },
   trompette: { name: "Trompette des morts", short: "Trompette", latin: "Craterellus cornucopioides", col: "#8e6ce0" },
   morille:   { name: "Morilles", short: "Morille", latin: "Morchella spp.", col: "#1fb5a6" },
@@ -38,6 +38,7 @@ const isSmall = () => innerWidth < 760;
 // ---------------------------------------------------------------------------------------------- state
 const st = { sp: "all", day: 0, mode: "f", base: "sat", rules: true, sectors: true, heat: 0.85, exag: 1.3 };
 try { Object.assign(st, JSON.parse(localStorage.getItem("champi-ui") || "{}"), { day: 0 }); } catch (e) {}
+if (st.sp === "bolet") st.sp = "cepe_ete"; // the "Autres bolets" filter became "Cèpes d'été"
 function saveUi() { try { localStorage.setItem("champi-ui", JSON.stringify({ sp: st.sp, mode: st.mode, base: st.base, rules: st.rules, sectors: st.sectors, heat: st.heat, exag: st.exag })); } catch (e) {} }
 let wx = null, TBL = null, DAYS = [], TODAY = 0, NDET = 0, wxState = "loading";
 let sectors = [], places = [], reserves = null, forpub = [], chBorder = [];

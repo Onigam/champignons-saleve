@@ -1,7 +1,7 @@
 """Export the habitat layers for the web map (MapLibre canvas source = Web Mercator rows).
 
 Reads build/ (outputs of process.py / assets.py, plate carrée 2048²) and writes data/:
-  hab_a.png  R cèpe, G autres bolets, B girolle        (0..252, step 4)
+  hab_a.png  R cèpe de Bordeaux, G cèpes d'été, B girolle   (0..252, step 4)
   hab_b.png  R trompette, G morilles, B altitude code   (code = (z_eff - 300) / 100 * 12, z_eff includes the aspect offset)
   mask.png   R rule*80 (0 none, 1 info, 2 to check, 3 forbidden), G forest class*16, B (region-1)*64 + geology*10
   dem.png    1024² plate carrée, decimetres in R/G (unchanged)

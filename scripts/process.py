@@ -204,23 +204,24 @@ EDGE = FOREST & (DIN <= 1)          # within ~40 m of a forest edge
 NEARF = (np.asarray(fimg.filter(ImageFilter.MaxFilter(3))) > 0) & ~FOREST & ~WATER  # 1 cell outside
 
 # ------------------------------------------------------------------ habitat model
-SP = ["cepe", "bolet", "girolle", "trompette", "morille"]
+# cepe = cèpe de Bordeaux + cèpe des pins (B. edulis, B. pinophilus); cepe_ete = cèpes d'été (B. reticulatus, B. aereus)
+SP = ["cepe", "cepe_ete", "girolle", "trompette", "morille"]
 HOST = np.array([  # rows = class 0..14 ; cols = species
     [0, 0, 0, 0, 0],
-    [0.65, 0.75, 0.60, 0.75, 0.35],   # 1 feuillus mélangés
-    [0.80, 0.95, 0.75, 0.60, 0.20],   # 2 chênes
-    [0.90, 0.70, 0.80, 1.00, 0.25],   # 3 hêtre
-    [0.95, 0.95, 0.85, 0.50, 0.10],   # 4 châtaignier
-    [0.95, 0.85, 0.85, 0.90, 0.40],   # 5 mixte feuillus+
-    [1.00, 0.80, 0.85, 0.70, 0.45],   # 6 mixte conifères+
-    [0.95, 0.70, 0.75, 0.35, 0.40],   # 7 sapin / épicéa
-    [0.60, 0.85, 0.55, 0.15, 0.15],   # 8 pins
-    [0.55, 0.60, 0.45, 0.20, 0.30],   # 9 autres conifères
-    [0.05, 0.35, 0.05, 0.10, 0.80],   # 10 peupleraie
+    [0.65, 0.80, 0.60, 0.75, 0.35],   # 1 feuillus mélangés
+    [0.80, 1.00, 0.75, 0.60, 0.20],   # 2 chênes
+    [0.90, 0.75, 0.80, 1.00, 0.25],   # 3 hêtre
+    [0.95, 1.00, 0.85, 0.50, 0.10],   # 4 châtaignier
+    [0.95, 0.75, 0.85, 0.90, 0.40],   # 5 mixte feuillus+
+    [1.00, 0.45, 0.85, 0.70, 0.45],   # 6 mixte conifères+
+    [0.95, 0.15, 0.75, 0.35, 0.40],   # 7 sapin / épicéa
+    [0.75, 0.15, 0.55, 0.15, 0.15],   # 8 pins
+    [0.55, 0.10, 0.45, 0.20, 0.30],   # 9 autres conifères
+    [0.05, 0.10, 0.05, 0.10, 0.80],   # 10 peupleraie
     [0.05, 0.10, 0.05, 0.00, 0.10],   # 11 lande / pelouse
-    [0.70, 0.85, 0.65, 0.70, 0.35],   # 12 feuillus (CH)
-    [0.90, 0.85, 0.80, 0.75, 0.35],   # 13 mixte (CH)
-    [0.80, 0.75, 0.65, 0.30, 0.30],   # 14 conifères (CH)
+    [0.70, 0.95, 0.65, 0.70, 0.35],   # 12 feuillus (CH)
+    [0.90, 0.65, 0.80, 0.75, 0.35],   # 13 mixte (CH)
+    [0.80, 0.15, 0.65, 0.30, 0.30],   # 14 conifères (CH)
 ], np.float32)
 GEOF = np.array([
     [0, 0, 0, 0, 0],

@@ -9,7 +9,7 @@ const BANDS = Array.from({ length: 20 }, (_, i) => 300 + i * 100); // 300 … 22
 // rain over the previous 26 days); other species from French/Swiss field guides and local GBIF months.
 const SPECIES = {
   cepe:      { win: [215, 255, 310, 332], shift: [-4, -4, -4, -4], td: 20, t: [5.5, 10, 16, 21], rain: [3, 26, 55], wetw: 1, frost: 0.85 },
-  bolet:     { win: [150, 175, 265, 300], shift: [2, 1, -3, -4],   td: 10, t: [11, 15, 22, 27], rain: [5, 18, 30], wetw: 1, frost: 0.9 },
+  cepe_ete:  { win: [150, 175, 265, 300], shift: [2, 1, -3, -4],   td: 10, t: [11, 15, 22, 27], rain: [5, 18, 30], wetw: 1, frost: 0.9 },
   girolle:   { win: [155, 180, 280, 315], shift: [2, 1, -3, -4],   td: 10, t: [8, 12, 20, 25],  rain: [5, 25, 40], wetw: 1, frost: 0.75 },
   trompette: { win: [225, 265, 325, 350], shift: [-2, -3, -5, -5], td: 10, t: [2.5, 6, 13, 18], rain: [8, 28, 50], wetw: 1, frost: 0.6 },
   morille:   { win: [60, 84, 120, 140],   shift: [5.5, 5.5, 5.5, 5.5], td: 15, t: [5, 8.5, 13, 17], rain: [3, 14, 12], wetw: 0.4, frost: 0.9, spring: true },
