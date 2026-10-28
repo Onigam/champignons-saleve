@@ -2,8 +2,10 @@
 // Champignons du Salève — web map (MapLibre). The fruiting model lives in model.js.
 
 // ---------------------------------------------------------------------------------------------- constants
-const W = 5.88, E = 6.40, SO = 46.00, NO = 46.36;
-const G = 2048; // habitat grid (columns linear in longitude, rows linear in Web Mercator y)
+// Area and grids: must match scripts/config.py (checked against data/meta.json at load)
+const W = 5.88, E = 6.40, SO = 45.86, NO = 46.36;
+const GX = 2048, GY = 2840; // habitat grid (columns linear in longitude, rows linear in Web Mercator y)
+const DW = 1024, DH = 1416; // elevation lookup raster (plate carrée)
 const SP_META = {
   cepe:      { name: "Cèpe de Bordeaux", short: "Cèpe de Bordeaux", latin: "Boletus edulis, avec le cèpe des pins B. pinophilus", col: "#e0602a" },
   cepe_ete:  { name: "Cèpes d'été", short: "Cèpe d'été", latin: "cèpe réticulé B. reticulatus, cèpe bronzé B. aereus", col: "#d6336c" },
@@ -31,6 +33,7 @@ const WX_POINTS = [
   { id: "jura", name: "Jura gessien", lat: 46.30, lon: 6.02, z: 1000 },
   { id: "saleve", name: "Plateau du Salève", lat: 46.13, lon: 6.18, z: 1150 },
   { id: "voirons", name: "Voirons", lat: 46.22, lon: 6.35, z: 1300 },
+  { id: "glieres", name: "Plateau des Glières", lat: 45.966, lon: 6.33, z: 1440 },
 ];
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isSmall = () => innerWidth < 760;
@@ -59,13 +62,13 @@ const merc = (lat) => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
 const unmerc = (y) => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180 / Math.PI;
 const MY0 = merc(NO), MY1 = merc(SO);
 const inBox = (lon, lat) => lon > W && lon < E && lat > SO && lat < NO;
-function gridXY(lon, lat) { return [Math.floor((lon - W) / (E - W) * G), Math.floor((merc(lat) - MY0) / (MY1 - MY0) * G)]; }
-function gridLonLat(x, y) { return [W + (x + 0.5) / G * (E - W), unmerc(MY0 + (y + 0.5) / G * (MY1 - MY0))]; }
+function gridXY(lon, lat) { return [Math.floor((lon - W) / (E - W) * GX), Math.floor((merc(lat) - MY0) / (MY1 - MY0) * GY)]; }
+function gridLonLat(x, y) { return [W + (x + 0.5) / GX * (E - W), unmerc(MY0 + (y + 0.5) / GY * (MY1 - MY0))]; }
 function elevAt(lon, lat) {
   if (!dem) return 0;
-  const fx = (lon - W) / (E - W) * 1024 - 0.5, fy = (NO - lat) / (NO - SO) * 1024 - 0.5;
-  const x0 = Math.max(0, Math.min(1022, Math.floor(fx))), y0 = Math.max(0, Math.min(1022, Math.floor(fy)));
-  const tx = Math.min(1, Math.max(0, fx - x0)), ty = Math.min(1, Math.max(0, fy - y0)), g = (x, y) => dem[y * 1024 + x];
+  const fx = (lon - W) / (E - W) * DW - 0.5, fy = (NO - lat) / (NO - SO) * DH - 0.5;
+  const x0 = Math.max(0, Math.min(DW - 2, Math.floor(fx))), y0 = Math.max(0, Math.min(DH - 2, Math.floor(fy)));
+  const tx = Math.min(1, Math.max(0, fx - x0)), ty = Math.min(1, Math.max(0, fy - y0)), g = (x, y) => dem[y * DW + x];
   return g(x0, y0) * (1 - tx) * (1 - ty) + g(x0 + 1, y0) * tx * (1 - ty) + g(x0, y0 + 1) * (1 - tx) * ty + g(x0 + 1, y0 + 1) * tx * ty;
 }
 function inRing(lon, lat, ring) {
@@ -106,7 +109,7 @@ function buildDays() {
 async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(`${r.status} ${url}`); return r.json(); }
 async function fetchWeather() {
   try {
-    const c = JSON.parse(localStorage.getItem("champi-wx") || "null");
+    const c = JSON.parse(localStorage.getItem("champi-wx-2") || "null");
     if (c && Date.now() - c.t < 3 * 3600e3 && c.doc.today === isoToday()) return c.doc;
   } catch (e) {}
   const q = (k) => WX_POINTS.map((p) => p[k]).join(",");
@@ -139,7 +142,7 @@ async function fetchWeather() {
     });
     if (doc.seasonal.tmax.some((a) => a.some((x) => x == null))) doc.seasonal = { days: [], tmax: [], tmin: [], precip: [] };
   } catch (e) { doc.seasonal = { days: [], tmax: [], tmin: [], precip: [] }; }
-  try { localStorage.setItem("champi-wx", JSON.stringify({ t: Date.now(), doc })); } catch (e) {}
+  try { localStorage.setItem("champi-wx-2", JSON.stringify({ t: Date.now(), doc })); } catch (e) {}
   return doc;
 }
 
@@ -154,10 +157,13 @@ async function decode(url) {
 async function loadData() {
   const files = [["habA", () => decode("data/hab_a.png")], ["habB", () => decode("data/hab_b.png")], ["mask", () => decode("data/mask.png")],
     ["dem", () => decode("data/dem.png")], ["sectors", () => getJSON("data/sectors.json")], ["places", () => getJSON("data/places.json")],
-    ["reserves", () => getJSON("data/reserves.geojson")], ["forpub", () => getJSON("data/forets_publiques.json")], ["border", () => getJSON("data/ch_border.json")]];
+    ["reserves", () => getJSON("data/reserves.geojson")], ["forpub", () => getJSON("data/forets_publiques.json")], ["border", () => getJSON("data/ch_border.json")], ["meta", () => getJSON("data/meta.json")]];
   let done = 0;
   const R = Object.fromEntries(await Promise.all(files.map(([k, f]) => f().then((v) => { done++; $("loadBar").value = done / files.length; return [k, v]; }))));
-  const n = G * G;
+  const mt = R.meta;
+  if (mt.nx !== GX || mt.ny !== GY || mt.dw !== DW || mt.dh !== DH || mt.bbox.join() !== [W, SO, E, NO].join())
+    throw new Error("data/meta.json ne correspond pas à la grille de app.js");
+  const n = GX * GY;
   HAB = { h: [0, 1, 2, 3, 4].map(() => new Uint8Array(n)), z: new Uint8Array(n), rule: new Uint8Array(n), cls: new Uint8Array(n), rg: new Uint8Array(n) };
   const nz = [];
   for (let i = 0, o = 0; i < n; i++, o += 4) {
@@ -167,17 +173,17 @@ async function loadData() {
     if (R.habA[o] | R.habA[o + 1] | R.habA[o + 2] | R.habB[o] | R.habB[o + 1]) nz.push(i);
   }
   NZ = Uint32Array.from(nz);
-  dem = new Float32Array(1024 * 1024);
+  dem = new Float32Array(DW * DH);
   for (let i = 0; i < dem.length; i++) dem[i] = (R.dem[i * 4] * 256 + R.dem[i * 4 + 1]) / 10;
   sectors = R.sectors; places = R.places; reserves = R.reserves; forpub = R.forpub; chBorder = R.border;
 }
 
 // ---------------------------------------------------------------------------------------------- habitat overlay (canvas source)
 // One spare column keeps the canvas non-power-of-two: MapLibre would otherwise sample it with mipmaps it never builds (renders black).
-const OVW = G + 1, E_OV = E + (E - W) / G;
-const ovCanvas = document.createElement("canvas"); ovCanvas.width = OVW; ovCanvas.height = G;
+const OVW = GX + 1, E_OV = E + (E - W) / GX;
+const ovCanvas = document.createElement("canvas"); ovCanvas.width = OVW; ovCanvas.height = GY;
 const ovCtx = ovCanvas.getContext("2d");
-const ovImg = ovCtx.createImageData(OVW, G);
+const ovImg = ovCtx.createImageData(OVW, GY);
 const ov32 = new Uint32Array(ovImg.data.buffer);
 // per-species factor for each altitude code (code = (z_eff - 300) / 100 * 12)
 function lutFor(sp, d) {
@@ -214,7 +220,7 @@ function drawOverlay() {
     const hot = sc > 0.78 ? Math.min(1, (sc - 0.78) / 0.22) * 0.45 : 0;
     const c = cols[k];
     const r = c[0] + (255 - c[0]) * hot, g = c[1] + (250 - c[1]) * hot, b = c[2] + (235 - c[2]) * hot;
-    ov32[i + ((i / G) | 0)] = ((a * heat * 0.92 * 255) << 24) | (b << 16) | (g << 8) | r;
+    ov32[i + ((i / GX) | 0)] = ((a * heat * 0.92 * 255) << 24) | (b << 16) | (g << 8) | r;
   }
   ovCtx.putImageData(ovImg, 0, 0);
   const src = map.getSource && map.getSource("hab");
@@ -263,8 +269,8 @@ maplibregl.addProtocol("ignfr", async (params, abort) => {
 
 const map = new maplibregl.Map({
   container: "map", style: "https://tiles.openfreemap.org/styles/liberty",
-  center: [6.17, 46.15], zoom: isSmall() ? 9.6 : 10.3, pitch: 55, bearing: -18, maxPitch: 78,
-  maxBounds: [[5.62, 45.86], [6.66, 46.5]], attributionControl: false, hash: true,
+  center: [6.17, 46.12], zoom: isSmall() ? 9.4 : 10.0, pitch: 55, bearing: -18, maxPitch: 78,
+  maxBounds: [[5.62, 45.72], [6.66, 46.5]], attributionControl: false, hash: true,
 });
 map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "Habitats : IGN BD Forêt, OFEV, swisstopo, SITG · Météo : Open-Meteo · Photo : © IGN, © swisstopo · Relief : © Mapterhorn" }), isSmall() ? "top-left" : "bottom-right");
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
@@ -369,12 +375,12 @@ function flyTo(lon, lat, zoom = 13.5) { map.flyTo({ center: [lon, lat], zoom, pi
 // ---------------------------------------------------------------------------------------------- near me
 function nearbySpots(pos, radiusKm = 1.5, max = 6) {
   const [cx, cy] = gridXY(pos[0], pos[1]);
-  const kmX = (E - W) * 111.32 * Math.cos(46.18 * Math.PI / 180) / G, kmY = (NO - SO) * 111.2 / G;
+  const kmX = (E - W) * 111.32 * Math.cos((NO + SO) / 2 * Math.PI / 180) / GX, kmY = (NO - SO) * 111.2 / GY;
   const rx = Math.ceil(radiusKm / kmX), ry = Math.ceil(radiusKm / kmY);
   const cand = [];
-  for (let y = Math.max(0, cy - ry); y <= Math.min(G - 1, cy + ry); y++) for (let x = Math.max(0, cx - rx); x <= Math.min(G - 1, cx + rx); x++) {
+  for (let y = Math.max(0, cy - ry); y <= Math.min(GY - 1, cy + ry); y++) for (let x = Math.max(0, cx - rx); x <= Math.min(GX - 1, cx + rx); x++) {
     const dx = (x - cx) * kmX, dy = (y - cy) * kmY; if (dx * dx + dy * dy > radiusKm * radiusKm) continue;
-    const i = y * G + x; if (HAB.rule[i] === 3 || HAB.cls[i] === 0) continue;
+    const i = y * GX + x; if (HAB.rule[i] === 3 || HAB.cls[i] === 0) continue;
     const [sc, k] = scoreAt(i); if (sc >= 0.3) cand.push([sc, x, y, k]);
   }
   cand.sort((a, b) => b[0] - a[0]);
@@ -383,17 +389,17 @@ function nearbySpots(pos, radiusKm = 1.5, max = 6) {
     if (out.some((o) => Math.hypot((o[1] - c[1]) * kmX, (o[2] - c[2]) * kmY) < 0.25)) continue;
     out.push(c); if (out.length >= max) break;
   }
-  return out.map(([sc, x, y, k]) => { const ll = gridLonLat(x, y); return { lon: ll[0], lat: ll[1], sc, sp: SP_KEYS[k], d: distKm(pos, ll), b: bearing(pos, ll), z: Math.round(elevAt(ll[0], ll[1])), rule: HAB.rule[y * G + x] }; });
+  return out.map(([sc, x, y, k]) => { const ll = gridLonLat(x, y); return { lon: ll[0], lat: ll[1], sc, sp: SP_KEYS[k], d: distKm(pos, ll), b: bearing(pos, ll), z: Math.round(elevAt(ll[0], ll[1])), rule: HAB.rule[y * GX + x] }; });
 }
 function renderNear() {
   spotMarkers.forEach((m) => m.remove()); spotMarkers = [];
   const ol = $("nearList"); ol.textContent = "";
   const msg = $("nearMsg");
   if (!userPos) return;
-  if (!inBox(userPos[0], userPos[1])) { msg.textContent = "Vous êtes hors de la zone couverte par la carte (Salève, Voirons, Vuache, Jura gessien, bassin genevois)."; return; }
+  if (!inBox(userPos[0], userPos[1])) { msg.textContent = "Vous êtes hors de la zone couverte par la carte (du Jura gessien et du Léman jusqu'à Cruseilles, aux Glières et au nord d'Annecy)."; return; }
   if (!HAB) { msg.textContent = "Chargement des habitats…"; return; }
   LUTS = LUTS || SP_KEYS.map((sp) => lutFor(sp, st.day));
-  const [gx, gy] = gridXY(userPos[0], userPos[1]), i = gy * G + gx;
+  const [gx, gy] = gridXY(userPos[0], userPos[1]), i = gy * GX + gx;
   const [sc, k] = scoreAt(i);
   const z = Math.round(elevAt(userPos[0], userPos[1]));
   const here = HAB.rule[i] === 3 ? " · <b>réserve : cueillette interdite</b>" : "";
@@ -604,7 +610,7 @@ function nearestPlace(lon, lat) {
 let clickMarker = null;
 function showPoint(lon, lat) {
   if (!HAB || !inBox(lon, lat)) return;
-  const [gx, gy] = gridXY(lon, lat), i = gy * G + gx;
+  const [gx, gy] = gridXY(lon, lat), i = gy * GX + gx;
   LUTS = LUTS || SP_KEYS.map((sp) => lutFor(sp, st.day));
   const z = Math.round(elevAt(lon, lat)), zEff = 300 + HAB.z[i] / 12 * 100, off = zEff - z;
   const hab = HAB.h.map((a) => a[i] / 252), cls = HAB.cls[i], reg = Math.floor(HAB.rg[i] / 64) + 1, geo = Math.round((HAB.rg[i] % 64) / 10);
